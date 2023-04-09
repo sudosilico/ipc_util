@@ -24,7 +24,7 @@ There are two functions that can be used to spawn an IPC server thread:
 - The `start_ipc_listener` function is used to spawn an IPC server thread using a callback that is passed a `LocalSocketStream` directly, as can be seen in the [stream example](examples/stream.rs).
 - The `start_ipc_server` function is a wrapper around `start_ipc_listener`, where the callback instead receives an arbitrary serializable object `TRequest` and returns an `Option<TResponse>`. When a response is returned, it is sent back to the client. This can be seen in the [server example](examples/server.rs).
 
-It's recommended to use `start_ipc_server` and its connection callback's `Option<T>` return type, where returning a `Some` variant will send that object as a response back to the client. This is intended to match up with the `send_ipc_query` function, which expects a response, while instances that return `None` to the callback will match up with `send_ipc_message` calls from clients.
+It's recommended to use `start_ipc_server` and its connection callback's `Option` return type, where returning a `Some` variant matches up with a `send_ipc_query` call from the client, and returning `None` matches up with `send_ipc_message`.
 
 ## Example
 
