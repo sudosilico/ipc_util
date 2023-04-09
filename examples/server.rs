@@ -13,7 +13,7 @@ pub fn get_ipc_name() -> &'static str {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub enum Message {
     Text { text: String },
     Ping,
@@ -45,7 +45,7 @@ fn run_client() {
 
     let ping = Message::Ping;
 
-    send_ipc_message(get_ipc_name(), text).expect("Failed to connect to socket");
+    send_ipc_message(get_ipc_name(), &text).expect("Failed to connect to socket");
 
     let response: Message =
         send_ipc_query(get_ipc_name(), &ping).expect("Failed to connect to socket");
@@ -63,5 +63,35 @@ fn main() {
             println!("Usage: {} [server|client]", args[0]);
             std::process::exit(1);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_ipc_communication() {
+        // Start server in a separate thread
+        std::thread::spawn(move || {
+            run_server();
+        });
+
+        // Wait for server to start
+        std::thread::sleep(std::time::Duration::from_millis(100));
+
+        // Send message from client
+        let text = Message::Text {
+            text: "Hello from client!".to_string(),
+        };
+        send_ipc_message(get_ipc_name(), &text).expect("Failed to connect to socket");
+
+        // Send query from client
+        let ping = Message::Ping;
+        let response: Message =
+            send_ipc_query(get_ipc_name(), &ping).expect("Failed to connect to socket");
+
+        // Check response
+        assert_eq!(response, Message::Pong);
     }
 }

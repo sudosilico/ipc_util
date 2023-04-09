@@ -1,7 +1,85 @@
-//! Provides a simple cross-platform generic IPC server and client system built on top of the `interprocess` crate.
+//! Provides simple cross-platform generic IPC message passing built on top of the `interprocess` crate.
 //!
-//! Intended to be used for applications that will have a long-running 'server' process that can receive messages from 'client' processes, and may or may not reply back.
+//! # Examples
 //!
+//! ```
+//! use interprocess::local_socket::NameTypeSupport;
+//! use ipc_util::{send_ipc_message, send_ipc_query, start_ipc_listener, SocketExt};
+//! use serde::{Deserialize, Serialize};
+//!
+//! pub const MY_SOCKET_PATH: &str = "/tmp/ipc-util-ex-stream.sock";
+//! pub const MY_SOCKET_NAMESPACE: &str = "@ipc-util-ex-stream.sock";
+//!
+//! pub fn get_ipc_name() -> &'static str {
+//!     use NameTypeSupport::*;
+//!     match NameTypeSupport::query() {
+//!         OnlyPaths => MY_SOCKET_PATH,
+//!         OnlyNamespaced | Both => MY_SOCKET_NAMESPACE,
+//!     }
+//! }
+//!
+//! #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
+//! pub enum Message {
+//!     Text { text: String },
+//!     Ping,
+//!     Pong,
+//! }
+//!
+//! fn run_server() {
+//!     start_ipc_listener(
+//!         get_ipc_name(),
+//!         |mut stream| {
+//!             // Read message from client
+//!             let message: Message = stream.read_serde().expect("Failed to read message");
+//!
+//!             // Handle message
+//!             match message {
+//!                 Message::Text { text } => {
+//!                     println!("{text}");
+//!                 }
+//!                 Message::Ping => {
+//!                     stream
+//!                         .write_serde(&Message::Pong)
+//!                         .expect("Failed to write pong");
+//!                 }
+//!                 _ => {}
+//!             };
+//!         },
+//!         None,
+//!     )
+//!     .expect("Failed to bind to socket")
+//!     .join()
+//!     .expect("Failed to join server thread");
+//! }
+//!
+//! fn run_client() {
+//!     let text = Message::Text {
+//!         text: "Hello from client!".to_string(),
+//!     };
+//!
+//!     let ping = Message::Ping;
+//!
+//!     send_ipc_message(get_ipc_name(), &text).expect("Failed to connect to socket");
+//!
+//!     let response: Message =
+//!         send_ipc_query(get_ipc_name(), &ping).expect("Failed to connect to socket");
+//!
+//!     dbg!(response);
+//! }
+//!
+//! fn main() {
+//!     let args = std::env::args().collect::<Vec<_>>();
+//!
+//!     match args.get(1).map(|s| s.as_str()) {
+//!         Some("server") => run_server(),
+//!         Some("client") => run_client(),
+//!         _ => {
+//!             println!("Usage: {} [server|client]", args[0]);
+//!             std::process::exit(1);
+//!         }
+//!     }
+//! }
+//! ```
 
 mod errors;
 pub use errors::*;
@@ -75,7 +153,7 @@ pub fn start_ipc_listener<F: Fn(LocalSocketStream) + Send + 'static>(
     Ok(thread)
 }
 
-/// A wrapper around `start_ipc_stream_listener`.
+/// A wrapper around `start_ipc_listener`.
 ///
 /// Rather than passing the LocalSocketStream directly to the `on_connection` callback,
 /// this function instead reads a deserializable object from the socket and passes that, then optionally responds with a serializable object.
@@ -105,7 +183,7 @@ pub fn start_ipc_server<
 /// Meant to be used for requests that don't expect a response from the server.
 pub fn send_ipc_message<TRequest: Serialize>(
     socket_name: &str,
-    request: TRequest,
+    request: &TRequest,
 ) -> Result<(), IpcClientError> {
     let mut stream = LocalSocketStream::connect(socket_name)?;
     stream.write_serde(&request)?;

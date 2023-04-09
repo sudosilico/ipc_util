@@ -1,6 +1,6 @@
 # ipc-util
 
-Provides a simple cross-platform generic IPC server and client system built on top of the `interprocess` crate.
+Provides simple cross-platform generic IPC message passing built on top of the `interprocess` crate.
 
 ## Installation
 
@@ -8,7 +8,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ipc-util = "0.1"
+ipc_util = "0.1"
 ```
 
 ## Usage

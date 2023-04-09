@@ -21,36 +21,30 @@ pub enum Message {
 }
 
 fn run_server() {
-    let server = start_ipc_listener(
+    start_ipc_listener(
         get_ipc_name(),
         |mut stream| {
-            eprintln!("Received connection");
-
             // Read message from client
             let message: Message = stream.read_serde().expect("Failed to read message");
-            eprintln!("Received message");
 
             // Handle message
             match message {
                 Message::Text { text } => {
-                    println!("Received text: {}", text);
+                    println!("{text}");
                 }
                 Message::Ping => {
-                    println!("Received ping");
                     stream
                         .write_serde(&Message::Pong)
                         .expect("Failed to write pong");
                 }
-                Message::Pong => {
-                    println!("Received pong");
-                }
+                _ => {}
             };
         },
         None,
     )
-    .expect("Failed to bind to socket");
-
-    server.join().expect("Failed to join server thread");
+    .expect("Failed to bind to socket")
+    .join()
+    .expect("Failed to join server thread");
 }
 
 fn run_client() {
@@ -60,7 +54,7 @@ fn run_client() {
 
     let ping = Message::Ping;
 
-    send_ipc_message(get_ipc_name(), text).expect("Failed to connect to socket");
+    send_ipc_message(get_ipc_name(), &text).expect("Failed to connect to socket");
 
     let response: Message =
         send_ipc_query(get_ipc_name(), &ping).expect("Failed to connect to socket");
@@ -99,7 +93,7 @@ mod tests {
         let text = Message::Text {
             text: "Hello from client!".to_string(),
         };
-        send_ipc_message(get_ipc_name(), text).expect("Failed to connect to socket");
+        send_ipc_message(get_ipc_name(), &text).expect("Failed to connect to socket");
 
         // Send query from client
         let ping = Message::Ping;
